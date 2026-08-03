@@ -1,0 +1,13 @@
+# Dependencies for the Homa RAG demo app (embedder.py, rag.py, homa_rag.py).
+# NOTE: these are installed under Python 3.12, not the default `python` (3.14),
+# which has none of them. Run the demo with the 3.12 interpreter, e.g.:
+#     py -3.12 homa_rag.py
+# Pinned to the versions this project was developed and profiled against.
+#
+# Not required by the ADTC profiler / evaluation — the model runs standalone
+# through llama.cpp. This is only for reproducing the local RAG demo.
+
+requests==2.34.2
+chromadb==1.5.9
+sentence-transformers==5.6.1
+pymupdf==1.28.0

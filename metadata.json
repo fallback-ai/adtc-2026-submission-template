@@ -25,13 +25,13 @@
     }
   ],
   "model": {
-    "name": "Homa-Phi3-Mini",
+    "name": "Homa-Afrique-Gemma-4B",
     "runtime": "llama.cpp",
     "quantization": "GGUF Q4_K_M",
-    "parameters_estimate": "3.8B",
+    "parameters_estimate": "4B",
     "packaging": "binary_bundle"
   },
   "_runtime": {
-    "model_path": "model/fallbackai-agric-Q4_K_M.gguf"
+    "model_path": "model/homa-afrique-gemma-4b-q4.gguf"
   }
 }
