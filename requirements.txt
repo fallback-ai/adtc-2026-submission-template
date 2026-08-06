@@ -11,4 +11,4 @@ requests==2.34.2
 chromadb==1.5.9
 sentence-transformers==5.6.1
 pymupdf==1.28.0
-dotenv>==0.9.9
+python-dotenv==1.2.2
