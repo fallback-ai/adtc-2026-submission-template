@@ -107,7 +107,6 @@ def clean_response(answer):
         "my instructions",
         "the retrieved passages",
         "the provided text",
-        "i cannot"
     ]
     sentences = re.split(r"(?<=[.!?])\s+", answer)
     clean = [s for s in sentences if not any(

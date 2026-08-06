@@ -127,9 +127,11 @@ Alongside the submitted weights, FallbackAI ships an **offline agentic-RAG
 application** (`homa_rag.py`) that grounds Homa's answers in a curated knowledge base
 of ~950 chunks from Nigerian and pan-African agronomic sources (planting calendars,
 disease and pest guides, fertilizer manuals), embedded locally with
-`paraphrase-multilingual-MiniLM-L12-v2` into a ChromaDB store. A keyword router
-selects the relevant collection(s), semantic search injects the top passages into the
-model's trained RAG format, and Homa answers in plain, farmer-facing language.
+`paraphrase-multilingual-MiniLM-L12-v2` into a ChromaDB store. For each question,
+semantic search runs across all collections and the closest passages by embedding
+distance are injected into the model's trained RAG format — a language-agnostic
+approach that retrieves relevant context whether the farmer asks in English, Hausa,
+Igbo, or Yoruba, and Homa answers in plain, farmer-facing language.
 
 This retrieval layer is the intended *product* experience. Note that the ADTC
 profiler evaluates the raw GGUF through `llama.cpp` directly, so the reported
