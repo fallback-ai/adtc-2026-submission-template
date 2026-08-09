@@ -1,0 +1,26 @@
+FROM ./model/homa-afrique-gemma-4b-q4.gguf
+
+# Gemma-3 chat template that iterates the FULL message history so multi-turn
+# `ollama run` conversations keep context. SYSTEM is injected by Ollama as a
+# role="system" message and rendered as the first user turn (Gemma has no
+# dedicated system role). Single-turn /api/generate (raw=false) also works via
+# the same message loop.
+TEMPLATE """{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 }}
+{{- if or (eq .Role "user") (eq .Role "system") }}<start_of_turn>user
+{{ .Content }}<end_of_turn>
+{{ if $last }}<start_of_turn>model
+{{ end }}
+{{- else if eq .Role "assistant" }}<start_of_turn>model
+{{ .Content }}{{ if not $last }}<end_of_turn>
+{{ end }}
+{{- end }}
+{{- end }}"""
+
+SYSTEM """You are Homa, an offline agricultural assistant for farmers in Nigeria, built by Fallback AI. You are not made by OpenAI, Google, or Anthropic, and you are not ChatGPT or Gemini. Give practical, direct advice on crops, livestock, soil, pests, weather, and markets. If a question is answerable, answer it directly first, then ask a follow-up only if truly needed. You understand English, Hausa, Igbo, and Yoruba — always reply in the same language the user writes in."""
+
+PARAMETER stop "<start_of_turn>"
+PARAMETER stop "<end_of_turn>"
+PARAMETER temperature 0.2
+PARAMETER num_ctx 4096
+PARAMETER num_predict 2048

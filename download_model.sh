@@ -10,10 +10,10 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODEL_DIR="$HERE/model"
-MODEL_FILE="$MODEL_DIR/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+MODEL_FILE="$MODEL_DIR/homa-afrique-gemma-4b-q4.gguf"
 
-# ── Replace this URL with your public model weight URL ─────────────────────────
-MODEL_URL="https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+# ── Public model weight URL (Homa — Afrique-Gemma-4B, GGUF Q4_K_M) ─────────────
+MODEL_URL="https://huggingface.co/fallback-ai/Homa-Afrique-Gemma-4B/resolve/main/homa-afrique-gemma-4b-q4.gguf"
 # ───────────────────────────────────────────────────────────────────────────────
 
 mkdir -p "$MODEL_DIR"
@@ -23,7 +23,7 @@ if [[ -f "$MODEL_FILE" ]]; then
   exit 0
 fi
 
-echo "downloading $MODEL_URL → $MODEL_FILE (~80 MB)…"
+echo "downloading $MODEL_URL → $MODEL_FILE (~2.5 GB)…"
 
 if command -v curl > /dev/null 2>&1; then
   curl -L --fail --progress-bar -o "$MODEL_FILE.partial" "$MODEL_URL"

@@ -1,37 +1,37 @@
 {
-  "team_id": "your-team-id",
-  "domain": "coding_assistants",
-  "language_scope": ["en"],
-  "african_alpha_claim": false,
+  "team_id": "fallbackai-2026",
+  "domain": "agriculture",
+  "language_scope": ["en", "ha", "yo", "sw", "fr", "ig"],
+  "african_alpha_claim": true,
   "budget_laptop_claim": true,
   "submitter": {
-    "name": "your-name",
-    "email": "your-email@domain.com",
-    "github_handle": "your-github"
+    "name": "Somtochukwu Ikewelugo",
+    "email": "sikewelugo@gmail.com",
+    "github_handle": "somto-ikewelugo"
   },
   "cross_disciplinary_pairing": {
-    "discipline": "education",
+    "discipline": "agriculture",
     "load_bearing": true,
-    "description": "Brief description of how your model serves a real-world domain."
+    "description": "Homa is an offline agricultural AI assistant by FallbackAI that provides crop disease diagnosis, fertilizer recommendations, pest management, seasonal planting guidance, and yield optimization for rural African farmers."
   },
   "test_prompts": [
     {
       "prompt_id": "tp_001",
-      "prompt": "Write a Python function that reads a CSV file and returns the column with the highest mean value."
+      "prompt": "I am a farmer in Oyo State Nigeria. My maize crop has yellowing leaves after 4 weeks of planting. Give me a detailed diagnosis and step by step treatment plan including fertilizer names and quantities."
     },
     {
       "prompt_id": "tp_002",
-      "prompt": "Explain the difference between a list and a tuple in Python, and give one example where each is the better choice."
+      "prompt": "How do I control Fall Armyworm in my maize farm in Benue State? Give detailed integrated pest management steps."
     }
   ],
   "model": {
-    "name": "SmolLM2-135M-Instruct-Q4_K_M",
+    "name": "Homa-Afrique-Gemma-4B",
     "runtime": "llama.cpp",
     "quantization": "GGUF Q4_K_M",
-    "parameters_estimate": "135M",
+    "parameters_estimate": "4B",
     "packaging": "binary_bundle"
   },
   "_runtime": {
-    "model_path": "model/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+    "model_path": "model/homa-afrique-gemma-4b-q4.gguf"
   }
 }
