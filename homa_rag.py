@@ -32,6 +32,25 @@ LOG_PATH = os.environ.get("HOMA_LOG_PATH", str(
     Path(__file__).resolve().parent / "homa_log.jsonl")
 )
 
+# Identity / anti-deflection preamble. raw=True bypasses the Modelfile SYSTEM,
+# so if we want it on this path we must inject it into the prompt ourselves.
+# It is folded into the FIRST user turn (Gemma has no system role). This is a
+# deliberate deviation from the pure trained RAG format; the trained identity
+# signal (heavily up-weighted in the V3 corpus) is the primary defense, this is
+# a runtime nudge on top. Set HOMA_SYSTEM_PROMPT="" to disable and A/B it.
+DEFAULT_SYSTEM = (
+    "You are Homa, an offline agricultural assistant for farmers in Nigeria, "
+    "built by Fallback AI. You are not made by OpenAI, Google, or Anthropic, and "
+    "you are not ChatGPT or Gemini. Answer questions directly and practically "
+    "first; ask a follow-up only if truly necessary. Reply in the same language "
+    "the user writes in."
+)
+SYSTEM_PROMPT = os.environ.get("HOMA_SYSTEM_PROMPT", DEFAULT_SYSTEM)
+
+# How many prior (user, assistant) exchanges to carry as multi-turn context.
+# Capped so the running conversation plus fresh RAG passages stays under num_ctx.
+MAX_HISTORY_TURNS = int(os.environ.get("HOMA_MAX_HISTORY_TURNS", "4"))
+
 embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
@@ -74,25 +93,36 @@ def search_rag(question, n_results_per_collection=2, top_k=3):
     scored.sort(key=lambda r: r["distance"])
     return scored[:top_k]
 
-# Matches the SFT-trained RAG format exactly: "Retrieved Passages: /
-# Passage N: / Question:", nothing else in the user turn. The model wasn't
-# trained to treat inline meta-instructions ("never mention
-# documents", persona framing, etc.) as authoritative. It only processes
-# them like any other text, not as directives. So adding them here
-# doesn't reliably steer behavior and just risks the model commenting
-# on them instead of following them. When there's no retrieved context,
-# this sends the plain question, matching the non-RAG training format.
-
-
-def build_prompt(question, context_docs):
+# The CURRENT user turn matches the SFT-trained RAG format exactly:
+# "Retrieved Passages: / Passage N: / Question:", nothing else. When there's no
+# retrieved context, it's the plain question (non-RAG training format).
+# Only the current turn carries passages; prior turns are stored as the plain
+# question + answer so multi-turn context stays compact and we don't re-feed
+# stale passages.
+def format_user_content(question, context_docs):
     if context_docs:
         passages = "\n\n".join(
             f"Passage {i+1}:\n{r['text']}" for i, r in enumerate(context_docs)
         )
-        user_content = f"Retrieved Passages:\n\n{passages}\n\nQuestion:\n{question}"
-    else:
-        user_content = question
-    return f"<start_of_turn>user\n{user_content}<end_of_turn>\n<start_of_turn>model\n"
+        return f"Retrieved Passages:\n\n{passages}\n\nQuestion:\n{question}"
+    return question
+
+
+# Builds the full raw prompt string ourselves (raw=True), so we keep exact
+# control over the turn format while supporting multi-turn history and an
+# optional system preamble folded into the first user turn.
+def build_prompt(question, context_docs, history=None, system=SYSTEM_PROMPT):
+    history = history or []
+    turns = list(history) + [("user", format_user_content(question, context_docs))]
+
+    parts = []
+    for idx, (role, content) in enumerate(turns):
+        if idx == 0 and system:
+            content = f"{system}\n\n{content}"
+        tag = "model" if role == "assistant" else "user"
+        parts.append(f"<start_of_turn>{tag}\n{content}<end_of_turn>\n")
+    parts.append("<start_of_turn>model\n")
+    return "".join(parts)
 
 # Lightweight safety net only, not the primary defense The actual fix
 # for identity leaks is matching the trained prompt format
@@ -139,11 +169,11 @@ def log_turn(question, context_docs, raw_answer, clean_answer, retrieval_s, gene
         print(f"[warn] failed to write log entry: {e}")
 
 
-def ask_homa(question):
+def ask_homa(question, history=None):
     t0 = time.perf_counter()
     context_docs = search_rag(question)
     t1 = time.perf_counter()
-    prompt = build_prompt(question, context_docs)
+    prompt = build_prompt(question, context_docs, history=history)
 
     try:
         response = requests.post(
@@ -189,12 +219,23 @@ if __name__ == "__main__":
     print("Homa RAG Agent ready!")
     print(f"Model endpoint: {OLLAMA_URL}")
     print(f"Logging turns to: {LOG_PATH}")
-    print("Type your farming question. Type quit to exit.\n")
+    print("Type your farming question. 'quit' to exit, 'reset' to clear history.\n")
+    # Rolling multi-turn context: list of ("user", q) / ("assistant", a) tuples.
+    # Only the current turn gets RAG passages; history holds plain Q/A.
+    history = []
     while True:
         question = input("You: ").strip()
         if question.lower() in ["quit", "exit"]:
             break
+        if question.lower() in ["reset", "/reset", "clear"]:
+            history = []
+            print("\n[history cleared]\n")
+            continue
         if not question:
             continue
-        answer = ask_homa(question)
+        answer = ask_homa(question, history=history)
         print(f"\nHoma: {answer}\n")
+        # Append this exchange, then trim to the last MAX_HISTORY_TURNS exchanges.
+        history.append(("user", question))
+        history.append(("assistant", answer))
+        history = history[-2 * MAX_HISTORY_TURNS:]
