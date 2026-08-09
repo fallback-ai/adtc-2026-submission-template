@@ -17,3 +17,6 @@ audit.json
 *tests
 *homa_log.jsonl
 *.env
+chroma_db_old
+afro_mini_onnx
+afro_mini_onnx_int8
