@@ -9,7 +9,7 @@ import chromadb
 import requests
 from dotenv import load_dotenv
 
-from embedder import get_embedder, collection, sync_knowledge_base
+from embedder import get_embedder, collection, sync_knowledge_base, get_pending_changes
 
 
 load_dotenv()
@@ -165,12 +165,51 @@ def ask_homa(question):
     return clean_answer
 
 
-if __name__ == "__main__":
+def maybe_sync_knowledge_base():
+    """Check for knowledge base changes and ask for permission before syncing.
+
+    Detection (get_pending_changes) is read-only and cheap. The actual
+    embedding pass (sync_knowledge_base) only runs if the user opts in,
+    since it re-embeds every new/changed file and can be expensive.
+    """
+    try:
+        pending = get_pending_changes()
+    except Exception as e:
+        print(f"[warn] failed to check for knowledge base changes: {e}")
+        return
+
+    new_or_updated = pending.get("new_or_updated", [])
+    removed = pending.get("removed", [])
+
+    if not new_or_updated and not removed:
+        print("Knowledge base is up to date. No sync needed.")
+        return
+
+    print("Knowledge base changes detected:")
+    if new_or_updated:
+        print(f"  New or changed files ({len(new_or_updated)}):")
+        for relpath in new_or_updated:
+            print(f"    - {relpath}")
+    if removed:
+        print(f"  Removed files ({len(removed)}):")
+        for relpath in removed:
+            print(f"    - {relpath}")
+
+    answer = input(
+        "Re-embed / update the index now? [y/N]: ").strip().lower()
+    if answer != "y":
+        print("Skipping sync; using existing embeddings.")
+        return
+
     print("Syncing knowledge base...")
     try:
         sync_knowledge_base()
     except Exception as e:
         print(f"[warn] sync_knowledge_base failed: {e}")
+
+
+if __name__ == "__main__":
+    maybe_sync_knowledge_base()
 
     print("Homa RAG Agent ready!")
     print(f"Model endpoint: {OLLAMA_URL}")
