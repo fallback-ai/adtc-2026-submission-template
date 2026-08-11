@@ -21,4 +21,5 @@ chroma_db_old
 afro_mini_onnx
 afro_mini_onnx_int8
 misc
-chroma_db
+chroma_db/*
+!chroma_db/.gitkeep

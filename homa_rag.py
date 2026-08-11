@@ -31,6 +31,16 @@ LOG_PATH = os.environ.get(
 MAX_DISTANCE = 0.85
 TOP_K = 2
 
+DEFAULT_SYSTEM = (
+    "You are Homa, an offline agricultural assistant for farmers in Nigeria, "
+    "built by Fallback AI. You give practical, direct advice on crops, livestock, "
+    "soil, pests, weather, and markets in English, Hausa, Igbo, and Yoruba, "
+    "replying in the language the user uses."
+)
+SYSTEM_PROMPT = os.environ.get("HOMA_SYSTEM_PROMPT", DEFAULT_SYSTEM)
+
+MAX_HISTORY_TURNS = int(os.environ.get("HOMA_MAX_HISTORY_TURNS", "4"))
+
 
 def _embed_query(question):
     """Embed a user question as a query vector for RAG search."""
@@ -67,21 +77,28 @@ def search_rag(question, top_k=TOP_K):
     return scored
 
 
-def build_prompt(question, context_docs):
-    """Build the RAG prompt for the language model, including retrieved passages."""
+def format_user_content(question, context_docs):
     if context_docs:
         passages = "\n\n".join(
             f"Passage {i+1}:\n{doc['text']}" for i, doc in enumerate(context_docs)
         )
-        return (
-            "<start_of_turn>user\n"
-            "Retrieved Passages:\n\n"
-            f"{passages}\n\n"
-            f"Question:\n{question}<end_of_turn>\n"
-            "<start_of_turn>model\n"
-        )
+        return f"Retrieved Passages:\n\n{passages}\n\nQuestion:\n{question}"
+    return question
 
-    return f"<start_of_turn>user\n{question}<end_of_turn>\n<start_of_turn>model\n"
+
+def build_prompt(question, context_docs, history=None, system=SYSTEM_PROMPT):
+    """Build the RAG prompt for the language model, including retrieved passages."""
+    history = history or []
+    turns = list(history) + [("user", format_user_content(question, context_docs))]
+
+    parts = []
+    for idx, (role, content) in enumerate(turns):
+        if idx == 0 and system:
+            content = f"{system}\n\n{content}"
+        tag = "model" if role == "assistant" else "user"
+        parts.append(f"<start_of_turn>{tag}\n{content}<end_of_turn>\n")
+    parts.append("<start_of_turn>model\n")
+    return "".join(parts)
 
 
 def clean_response(answer: str) -> str:
@@ -90,7 +107,17 @@ def clean_response(answer: str) -> str:
     cleaned = re.sub(r"Retrieved Passages:\s*", "",
                      answer, flags=re.IGNORECASE)
     cleaned = re.sub(r"Passage \d+:\s*", "", cleaned, flags=re.IGNORECASE)
-    return cleaned.strip()
+    
+    leak_phrases = [
+        "i am homa, created by fallback",
+        "my instructions",
+        "the retrieved passages",
+        "the provided text",
+    ]
+    sentences = re.split(r"(?<=[.!?])\s+", cleaned)
+    clean = [s for s in sentences if not any(
+        p in s.lower() for p in leak_phrases)]
+    return " ".join(clean).strip()
 
 
 def log_turn(question, context_docs, raw_answer, clean_answer, retrieval_s, generation_s, error=None):
@@ -119,12 +146,12 @@ def log_turn(question, context_docs, raw_answer, clean_answer, retrieval_s, gene
         print(f"[warn] failed to write log entry: {e}")
 
 
-def ask_homa(question):
+def ask_homa(question, history=None):
     """Ask the Homa RAG agent a question and return its cleaned answer."""
     t0 = time.perf_counter()
     context_docs = search_rag(question)
     t1 = time.perf_counter()
-    prompt = build_prompt(question, context_docs)
+    prompt = build_prompt(question, context_docs, history=history)
 
     try:
         response = requests.post(
@@ -214,12 +241,20 @@ if __name__ == "__main__":
     print("Homa RAG Agent ready!")
     print(f"Model endpoint: {OLLAMA_URL}")
     print(f"Logging turns to: {LOG_PATH}")
-    print("Type your farming question. Type quit to exit.\n")
+    print("Type your farming question. 'quit' to exit, 'reset' to clear history.\n")
+    history = []
     while True:
         question = input("You: ").strip()
         if question.lower() in ["quit", "exit"]:
             break
+        if question.lower() in ["reset", "/reset", "clear"]:
+            history = []
+            print("\n[history cleared]\n")
+            continue
         if not question:
             continue
-        answer = ask_homa(question)
+        answer = ask_homa(question, history=history)
         print(f"\nHoma: {answer}\n")
+        history.append(("user", question))
+        history.append(("assistant", answer))
+        history = history[-2 * MAX_HISTORY_TURNS:]
