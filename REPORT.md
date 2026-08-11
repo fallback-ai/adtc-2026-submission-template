@@ -38,7 +38,7 @@ and where the crop decision is being made.
 - **Base:** [`McGill-NLP/AfriqueGemma-4B`](https://huggingface.co/McGill-NLP) — a
   continued-pre-training of `google/gemma-3-4b-pt` over ~25.2B tokens across 20
   African languages. We chose an African-language-adapted base over a general
-  instruction model so that Hausa, Igbo, and Yoruba are *native* to the weights
+  instruction model so that Hausa, Igbo, and Yoruba are _native_ to the weights
   rather than bolted on, directly supporting the localisation goal.
 - **Why 4B:** at Q4_K_M a 4B Gemma quantizes to ~2.5 GB on disk and runs in
   **under 5 GB RAM**, leaving comfortable headroom under the 7 GB usable ceiling.
@@ -55,7 +55,7 @@ and where the crop decision is being made.
 - **Data:** ~5,500+ instruction–response pairs spanning crop production, livestock,
   identity/scope, out-of-domain boundary handling, and safety examples. Pairs were
   machine-translated and **hand-reviewed** across English, Hausa, Igbo, and Yoruba.
-  The dataset explicitly teaches the model to *decline* out-of-scope requests
+  The dataset explicitly teaches the model to _decline_ out-of-scope requests
   (market/pricing data, translation, general chit-chat) so it stays a trustworthy
   agronomy tool rather than a general chatbot.
 - **RAG-aware training:** the SFT set includes the retrieval prompt format
@@ -72,11 +72,11 @@ and where the crop decision is being made.
 
 ### Training result (best checkpoint, step 620)
 
-| Metric | Value |
-|---|---|
-| Epochs | 1.09 (early-stopped, no overfitting observed) |
-| Eval loss | 1.1374 |
-| Token-level accuracy | 71.5% |
+| Metric               | Value                                         |
+| -------------------- | --------------------------------------------- |
+| Epochs               | 1.09 (early-stopped, no overfitting observed) |
+| Eval loss            | 1.1374                                        |
+| Token-level accuracy | 71.5%                                         |
 
 ---
 
@@ -104,17 +104,17 @@ Self-reported development benchmarks, measured with the ADTC profiler in partici
 mode. Official scores are measured by the ADTC profiler on the standard evaluation
 machine.
 
-| Metric | Value |
-|---|---|
-| Machine | Intel Core i5 (Family 6, Model 154), 4-bit CPU inference |
-| Runtime | `llama.cpp` (GGUF Q4_K_M), architecture `gemma3` |
-| Peak RSS | **5,570 MB (~5.4 GB)** — within the 7 GB ceiling |
-| Steady-state RSS | 4,969 MB |
-| Generation speed | **13.79 tokens/s** |
-| Time to first token | 2,113 ms |
-| CPU utilisation (p99) | 55.8% |
-| Thermal throttling | **None observed** |
-| Native context length | 131,072 tokens (operated at 4,096) |
+| Metric                | Value                                                    |
+| --------------------- | -------------------------------------------------------- |
+| Machine               | Intel Core i5 (Family 6, Model 154), 4-bit CPU inference |
+| Runtime               | `llama.cpp` (GGUF Q4_K_M), architecture `gemma3`         |
+| Peak RSS              | **5,570 MB (~5.4 GB)** — within the 7 GB ceiling         |
+| Steady-state RSS      | 4,969 MB                                                 |
+| Generation speed      | **13.79 tokens/s**                                       |
+| Time to first token   | 2,113 ms                                                 |
+| CPU utilisation (p99) | 55.8%                                                    |
+| Thermal throttling    | **None observed**                                        |
+| Native context length | 131,072 tokens (operated at 4,096)                       |
 
 **African language support:** English, Hausa, Igbo, Yoruba — the model responds in
 the language the question was asked in.
@@ -126,14 +126,24 @@ the language the question was asked in.
 Alongside the submitted weights, FallbackAI ships an **offline agentic-RAG
 application** (`homa_rag.py`) that grounds Homa's answers in a curated knowledge base
 of ~950 chunks from Nigerian and pan-African agronomic sources (planting calendars,
-disease and pest guides, fertilizer manuals), embedded locally with
-`paraphrase-multilingual-MiniLM-L12-v2` into a ChromaDB store. For each question,
-semantic search runs across all collections and the closest passages by embedding
-distance are injected into the model's trained RAG format — a language-agnostic
-approach that retrieves relevant context whether the farmer asks in English, Hausa,
-Igbo, or Yoruba, and Homa answers in plain, farmer-facing language.
+disease and pest guides, fertilizer manuals).
 
-This retrieval layer is the intended *product* experience. Note that the ADTC
+The retrieval pipeline is built around a custom local embedder:
+
+- the tokenizer is exported from `Davlan/afro-xlmr-mini` into `./afro_mini_onnx`.
+- the embedding model is then quantized to INT8 and packaged as
+  `./afro_mini_onnx_int8/model_quantized.onnx`.
+- embeddings are computed using ONNX Runtime with `CPUExecutionProvider`, mean pooled
+  over the attention mask, and L2-normalized into a 384-dimensional vector.
+- text preprocessing cleans `passage:` and `query:` prefixes, then encodes the data
+  in batches for efficient offline indexing.
+
+These vectors are stored in a ChromaDB collection named `homa_knowledge_base`, and
+semantic search returns the closest passages by embedding distance for injection into
+the model's RAG prompt format. This design preserves the offline guarantee while
+using a compact, CPU-friendly multilingual embedding stack.
+
+This retrieval layer is the intended _product_ experience. Note that the ADTC
 profiler evaluates the raw GGUF through `llama.cpp` directly, so the reported
 accuracy/throughput/memory figures reflect the model on its own — the RAG layer is
 demonstrated in the accompanying video rather than measured by the profiler.
