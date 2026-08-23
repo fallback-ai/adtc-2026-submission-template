@@ -43,19 +43,19 @@ Confirm Ollama is up:
 
 ## 1. Get the model weights and build the Ollama tag
 
-The GGUF is **not** in git (it's ~2.5 GB). Download it from Hugging Face, then
+The GGUF is **not** in git (it's ~0.98 GB). Download it from Hugging Face, then
 build the `homa` Ollama tag from the Modelfile.
 
 ```powershell
-# Downloads model/homa-afrique-gemma-4b-q4.gguf from HF (public, idempotent).
+# Downloads model/homa-qwen15b-q4.gguf from HF (public, idempotent).
 # Needs Git Bash / WSL for the .sh, OR use the curl line below directly.
 bash download_model.sh
 ```
 
 If you don't have bash, download directly:
 ```powershell
-curl.exe -L --fail -o "model\homa-afrique-gemma-4b-q4.gguf" `
-  "https://huggingface.co/fallback-ai/Homa-Afrique-Gemma-4B/resolve/main/homa-afrique-gemma-4b-q4.gguf"
+curl.exe -L --fail -o "model\homa-qwen15b-q4.gguf" `
+  "https://huggingface.co/fallback-ai/Homa-Qwen2.5-1.5B/resolve/main/homa-qwen15b-q4.gguf"
 ```
 
 Build the Ollama model (the test scripts all use the tag **`homa`**):
@@ -92,7 +92,7 @@ ollama run homa
 ```
 
 ### 3b. RAG end-to-end smoke test (needs chroma_db/ + Ollama `homa`)
-Retrieval (EN + Hausa), prompt format, `clean_response`, and offline generation
+Retrieval, prompt format, `clean_response`, and offline generation
 on the two official ADTC prompts. Exits non-zero if any check fails.
 ```powershell
 py -3.12 tests/smoke_test.py
