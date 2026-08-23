@@ -11,24 +11,24 @@
   },
   "cross_disciplinary_pairing": {
     "discipline": "agriculture",
-    "load_bearing": false,
+    "load_bearing": true,
     "description": "Homa serves rural African farmers by providing crop disease diagnosis, fertilizer recommendations, pest management, seasonal planting guidance, and yield optimization"
   },
   "test_prompts": [
     {
       "prompt_id": "tp_001",
-      "prompt": "I am a farmer in Oyo State Nigeria. My maize crop has yellowing leaves after 4 weeks of planting. Give me a detailed diagnosis and step by step treatment plan including fertilizer names and quantities."
+      "prompt": "I am a tomato farmer in Kaduna State, Nigeria. My tomato plants have curled leaves and small white insects underneath the leaves. What is the likely cause, how can I confirm it, and what treatment and prevention steps should I follow?"
     },
     {
       "prompt_id": "tp_002",
-      "prompt": "How do I control Fall Armyworm in my maize farm in Benue State? Give detailed integrated pest management steps."
+      "prompt": "I am a rice farmer in Kebbi State, Nigeria. My rice plants are showing brown spots on the leaves and some plants are stunted. What could be causing this, how can I diagnose the problem, and what fertilizer, pesticide, or other treatments should I use?"
     }
   ],
   "model": {
     "name": "Homa-Qwen2.5-1.5B",
     "runtime": "llama.cpp",
     "quantization": "GGUF Q4_K_M",
-    "parameters_estimate": "2B",
+    "parameters_estimate": "1.5B",
     "packaging": "binary_bundle"
   },
   "_runtime": {

@@ -20,23 +20,18 @@ This report documents Homa’s architectural development, empirical hardware pro
 Rather than a linear trial-and-error path, development was structured across two complementary R&D tracks to map the Pareto frontier between parameter scale, CPU latency, and domain capability.
 
 ```mermaid
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            R&D METHODOLOGY & PATH                           │
-├──────────────────────────────────────┬──────────────────────────────────────┤
-│  Track A: Edge Efficiency & Latency  │  Track B: Multilingual Scale & SFT   │
-│  (Phi-3-Mini → Gemma-2-2B → Qwen1.5B)│  (AfriqueGemma-4B Base → Imatrix)    │
-├──────────────────────────────────────┼──────────────────────────────────────┤
-│ • Prototyped sub-2GB RAM footprints  │ • Curated 5,517 4-language dataset   │
-│ • Validated CPU dequant throughput   │ • QLoRA on all linear layers (r=32)  │
-│ • Optimized prompt-masking SFT       │ • Checkpoint-620 (71.5% token acc)   │
-│ • Achieved 22+ t/s, <2s TTFT         │ • Benchmarked 8–10 t/s, 29s TTFT     │
-└──────────────────────────────────────┴──────────────────────────────────────┘
-                                  │
-                                  ▼
-        ┌───────────────────────────────────────────────────────────┐
-        │     PRODUCTION SUBMISSION: Homa-Qwen2.5-1.5B (Q4_K_M)     │
-        │  Deterministic Gate 1 Clearance · 22+ t/s · Zero Thermal  │
-        └───────────────────────────────────────────────────────────┘
+flowchart TD
+    A["R&D METHODOLOGY & PATH"]
+
+    A --> B["Track A: Edge Efficiency & Latency<br/>Phi-3-Mini → Gemma-2-2B → Qwen1.5B"]
+    A --> C["Track B: Multilingual Scale & SFT<br/>AfriqueGemma-4B Base → Imatrix"]
+
+    B --> B1["• Prototyped sub-2GB RAM footprints<br/>• Validated CPU dequant throughput<br/>• Optimized prompt-masking SFT<br/>• Achieved 22+ t/s, &lt;2s TTFT"]
+
+    C --> C1["• Curated 5,517 4-language dataset<br/>• QLoRA on all linear layers (r=32)<br/>• Checkpoint-620 (71.5% token acc.)<br/>• Benchmarked 8–10 t/s, 29s TTFT"]
+
+    B1 --> D["PRODUCTION SUBMISSION: Homa-Qwen2.5-1.5B (Q4_K_M)<br/>Deterministic Gate 1 Clearance · 22+ t/s · Zero Thermal"]
+    C1 --> D
 ```
 
 ### 2.1 Track A: Edge Efficiency Prototyping (`Phi-3-Mini`, `Gemma-2-2B`)

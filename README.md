@@ -1,190 +1,113 @@
-# ADTC 2026 — Submission Template
+# Homa - Offline, On-device AI assistant for African Farmers
+> Please find the full technical report in [REPORT.md](./REPORT.md)
 
-This is the official template repository for the **Africa Deep Tech Challenge 2026** Laptop LLM track.
+## Running and profiling Homa
+### Prerequisites
+Please ensure you have the following installed:
+1. [ADTC Profiler](https://github.com/Africa-Deep-Tech-Foundation/adtc-profiler)
+2. [Ollama](https://ollama.com/download)
 
-Fork this repository, fill in the required files, and submit your repository URL via [adtc-2026.devpost.com](https://adtc-2026.devpost.com).
-
----
-
-## ✅ Submission Checklist
-
-Before submitting, confirm every item:
-
-- [ ] Your repository is **public** on GitHub
-- [ ] `metadata.json` is fully filled in — no placeholder values remain
-- [ ] `metadata.json` contains exactly **2 test prompts** in the `test_prompts` array, written for your chosen domain
-- [ ] `download_model.sh` successfully downloads your model to `model/`
-- [ ] The downloaded file is a valid **GGUF format** (`.gguf`) weight file
-- [ ] `model/*.gguf` is listed in `.gitignore` — do **not** commit large weight files
-- [ ] `REPORT.md` is filled in with your technical writeup
-- [ ] Running `bash download_model.sh` completes without errors
-- [ ] Your model runs entirely **offline** — zero external network calls during inference
-
----
-
-## 📁 Required File Structure
-
-```
-your-submission/
-├── metadata.json          ← Required. Team, model, and test prompt metadata.
-├── download_model.sh      ← Required. Downloads your .gguf model weight file.
-├── REPORT.md              ← Required. Technical writeup (problem, design, benchmarks).
-├── model/
-│   └── your-model.gguf   ← Downloaded by the script above. Do NOT commit.
-└── .gitignore             ← Must exclude *.gguf and model/ from version control.
-```
-
----
-
-## 📝 metadata.json
-
-Fill in every field. No field should remain at its placeholder value.
-
-```json
-{
-  "team_id": "your-team-id",
-  "domain": "coding_assistants",
-  "language_scope": ["en"],
-  "african_alpha_claim": false,
-  "budget_laptop_claim": true,
-  "submitter": {
-    "name": "your-name",
-    "email": "your-email@domain.com",
-    "github_handle": "your-github"
-  },
-  "cross_disciplinary_pairing": {
-    "discipline": "education",
-    "load_bearing": true,
-    "description": "Brief description of how your model serves a real-world domain."
-  },
-  "test_prompts": [
-    {
-      "prompt_id": "tp_001",
-      "prompt": "Your first test prompt, written for your chosen domain."
-    },
-    {
-      "prompt_id": "tp_002",
-      "prompt": "Your second test prompt, written for your chosen domain."
-    }
-  ],
-  "model": {
-    "name": "YourModel-Q4_K_M",
-    "runtime": "llama.cpp",
-    "quantization": "GGUF Q4_K_M",
-    "parameters_estimate": "1.1B",
-    "packaging": "binary_bundle"
-  },
-  "_runtime": {
-    "model_path": "model/your-model.gguf"
-  }
-}
-```
-
-### Field Reference
-
-| Field | Required | Description |
-|---|---|---|
-| `team_id` | ✅ | Your unique team ID as registered on the ADTF portal |
-| `domain` | ✅ | Your challenge track. One of: `math_scientific_reasoning`, `healthcare_medical`, `agriculture`, `creative_writing`, `coding_assistants`, `corporate_enterprise`, `autonomous_ai_agents` |
-| `language_scope` | ✅ | Array of BCP-47 language codes. Must include at least one. |
-| `african_alpha_claim` | ✅ | `true` only if claiming the African Use Case Bonus |
-| `budget_laptop_claim` | ✅ | Must be `true` — all submissions target the 8 GB RAM laptop profile |
-| `submitter.name` | ✅ | Full name of the team member submitting the run |
-| `submitter.email` | ✅ | Valid email address linked to the registered team |
-| `submitter.github_handle` | ✅ | Verifiable GitHub username |
-| `cross_disciplinary_pairing.discipline` | ✅ | The deep-tech discipline your model serves |
-| `cross_disciplinary_pairing.load_bearing` | ✅ | `true` if the pairing is integral to the submission, not cosmetic |
-| `test_prompts` | ✅ | **Exactly 2 prompts** in your chosen domain. Organizers will add 2 hidden prompts to test for overfitting. |
-| `model.runtime` | ✅ | Must be `llama.cpp`. No other runtime is accepted. |
-| `model.quantization` | ✅ | Must be a GGUF quantization format (e.g. `GGUF Q4_K_M`, `GGUF Q5_K_M`) |
-| `model.parameters_estimate` | ✅ | Approximate parameter count (e.g. `135M`, `1.1B`, `7B`) |
-| `model.packaging` | ✅ | How the model is packaged. One of: `docker_image`, `docker_build_from_repo`, `binary_bundle` |
-| `_runtime.model_path` | ✅ | Relative path from repo root to your `.gguf` file (e.g. `model/my-model.gguf`) |
-
----
-
-## 📥 download_model.sh
-
-This script **must** download your model weight file to the `model/` directory.
-
-Rules:
-- Must be idempotent — safe to run multiple times without re-downloading.
-- Must work without any credentials — your weights must be publicly accessible.
-- The downloaded file path must exactly match `_runtime.model_path` in `metadata.json`.
-
-Recommended hosting options for your weights:
-- [Hugging Face](https://huggingface.co) — public model repos (free, best for GGUF files)
-- GitHub Release Assets — attach the `.gguf` file to a GitHub Release
-- Any stable public URL (GCS public bucket, S3 public object, etc.)
-
----
-
-## 📄 REPORT.md
-
-Your technical writeup. Judges and the LLM-based audit system will read this to understand your submission. Cover:
-
-1. **Problem** — What problem are you solving? Who is the target user in an African context?
-2. **Design Decisions** — What model did you start from? Why that quantization level? What alternatives did you evaluate?
-3. **Constraints** — What hardware, connectivity, or data constraints shaped your approach?
-4. **Benchmarks** — What inference speed and memory numbers did you observe on your development machine?
-
-Keep it factual and specific. One to three pages is ideal.
-
----
-
-## 🧪 Local Testing
-
-The ADTC profiler is open source. Install it directly from the official repository:
-
+### How to run Homa Locally
+1. Download Homa from Hugging Face
 ```bash
-pip install "git+https://github.com/Africa-Deep-Tech-Foundation/adtc-profiler.git"
+./download_model.sh
 ```
 
-Then run a local smoke test before submitting:
-
+2. Build Homa locally
 ```bash
-# 1. Download your weights
-bash download_model.sh
+ollama create homa -f Modelfile
+```
 
-# 2. Run the profiler in participant mode
+3. Run Homa
+```bash
+ollama run homa
+```
+
+### How to profile Homa for [ADTC 2026](https://adtc-2026.devpost.com/)
+1. Run the [ADTC profiler](https://github.com/Africa-Deep-Tech-Foundation/adtc-profiler) from the root directory
+```bash
 adtc-profiler run \
   --submission . \
   --mode participant \
-  --output submission.json \
-  --skip-accuracy
-
-# 3. Review your report
-cat submission.json
+  --output submission.json
 ```
 
-A valid run produces a `submission.json` with `"measured_on": "participant_laptop"`.
+2. Output the profiler report in the terminal
+```bash
+cat submission.json
+```
+## Inspiration
 
-The profiler source code, including the thermal monitoring logic and scoring formulas, is publicly readable at:
-[github.com/Africa-Deep-Tech-Foundation/adtc-profiler](https://github.com/Africa-Deep-Tech-Foundation/adtc-profiler)
+The cost of access to frontier intelligence and intelligent tools has dropped steadily over the past few years and is projected to drop significantly in the coming years. This translates into greater productivity, strengthening the economy for those with the basic infrastructure needed to access these intelligent tools.
 
----
+Research shows that the average African farmer lives in remote locations where access to the internet or high-tech devices is limited<sup>[1]</sup>. This suggests these farmers may not access frontier intelligence, no matter how cheap it becomes.
 
-## ⚠️ Rules
+This fundamental barrier is what inspired the design direction we chose for Homa.
 
-1. **Public repository required.** Your repository must be public at the time of evaluation.
-2. **No model weights in git.** Add `*.gguf` and `model/` to your `.gitignore`. The evaluator downloads weights fresh via `download_model.sh`.
-3. **100% offline during evaluation.** Your model must run with zero external network dependencies during our testing window. `download_model.sh` runs before the profiler starts, but once profiling begins, no outbound requests are permitted.
-4. **llama.cpp only.** All models must use GGUF weights and run through `llama.cpp`. No other runtime is supported by our evaluation framework.
-5. **8 GB RAM limit.** Your model must run within the standard laptop profile (4 vCPU, 8 GB RAM, integrated GPU only). Out-of-memory errors during evaluation result in automatic disqualification.
-6. **No size restriction.** There is no parameter count or file size cap — but the 8 GB RAM constraint is strict. Plan your quantization level accordingly.
-7. **Two test prompts required.** Your `metadata.json` must include exactly 2 prompts in the `test_prompts` array. Organizers will generate 2 additional hidden prompts within your domain. All 4 are used for scoring.
+## What it does
 
----
+Homa is an offline, on-device AI agricultural assistant equipped with practical, locally relevant guidance on an affordable laptop with no internet dependency. Homa can provide guidance to farmers on the following:
 
-## 🆘 Support
+- Crop production
+- Livestock production
+- Pest and disease management
+- Fertiliser decision
+- Seasonal planting guidance for Nigerian/West-African context
 
-Open an issue in this repository or contact the ADTF team at challenge@africadeeptech.org.
+## How we built it
 
-View the full eligibility rules at [adtc-2026.devpost.com/rules](https://adtc-2026.devpost.com/rules).
+We built Homa as an **offline, quantized AI assistant for Nigerian farmers**, optimized to run on modest hardware without requiring an internet connection.
 
----
+We started with **AfriqueGemma-4B**, a model with African-language continued pretraining, and fine-tuned it using **LoRA/QLoRA** on our agricultural instruction dataset. We expanded the dataset to over **5,500 deduplicated examples across English, Yoruba, Hausa, and Igbo**, while continuously testing the model for agricultural accuracy, identity consistency, safety, and multilingual behavior.  
 
-## 📄 License
+We then optimized the model for offline deployment using **GGUF quantization and llama.cpp**. We experimented with standard and importance-matrix-guided quantization to reduce memory usage while preserving accuracy.
 
-This template is licensed under the terms of the [GNU GPL v3 License](LICENSE).
+The most important part of the development process was **real-hardware profiling**. AfriqueGemma-4B delivered strong multilingual capabilities, but its CPU throughput and thermal behavior created too much risk of failing the competition's hardware gate. We therefore evaluated smaller alternatives and ultimately moved to **Qwen2.5-1.5B-Instruct**, which already had instruction-following and native system-role support.  
 
+For the final model, we fine-tuned Qwen using **LoRA**, trained only on the assistant's completion tokens, merged the adapter on CPU, and converted the resulting model to **F16 and Q4_K_M GGUF** for lightweight offline inference. The final candidate achieved **22+ tokens/sec, 72%+ benchmark accuracy, and under 2GB peak memory**.  
+
+In summary, we built Homa through an iterative cycle of **data collection -> fine-tuning -> quantization -> real-hardware profiling -> evaluation -> optimization**, ultimately prioritizing a model that could reliably deliver useful agricultural intelligence within the hardware constraints of the target users.
+
+## Challenges we ran into
+
+The biggest challenge was **balancing model intelligence with the hardware constraints of the target environment**. Our initial AfriqueGemma-4B model had strong multilingual capabilities, but real-world profiling showed low and inconsistent CPU throughput, high first-token latency, and thermal-performance concerns. This created a serious risk of failing the automated hardware gate.
+
+We also ran into **GPU memory and training infrastructure issues**. During training, our multi-GPU environment was unintentionally splitting the model across GPUs and slowing training significantly. We also encountered CUDA out-of-memory errors when merging the LoRA adapter, which we solved by explicitly freeing GPU memory and performing the merge on CPU.
+
+Another major challenge was **data quality and model behavior**. The model sometimes incorrectly identified itself as being created by OpenAI, used repetitive refusal patterns, and behaved differently across languages. For example, it could provide treatment advice in English but refuse an equivalent question in Hausa. We had to repeatedly audit, deduplicate, and regenerate training examples to address these issues.  
+We also discovered that **RAG did not automatically improve performance**. In some scored cases, retrieval returned irrelevant information, which actually caused the model to produce worse answers than it did without RAG. This forced us to treat retrieval quality as a separate engineering problem rather than assuming that adding RAG would improve the system.
+
+Ultimately, our biggest challenge was making the right **engineering trade-off**. We had to choose between a larger multilingual model with a potential scoring advantage and a smaller model that could reliably run within the hardware constraints. We ultimately chose Qwen2.5-1.5B-Instruct because passing the hardware gate was more important than retaining the African-language multiplier.
+
+## Accomplishments that we're proud of
+
+We’re proud that we took Homa from an initial model idea to a **fully quantized, offline agricultural assistant** through multiple rounds of training, evaluation, and optimization. We built and tested our own multilingual agricultural dataset, fine-tuned multiple models, and produced deployable GGUF versions for low-resource hardware.
+
+We’re particularly proud of the **engineering rigor behind the final model**. Rather than optimizing only for benchmark numbers, we profiled the models on real hardware, identified throughput and memory bottlenecks, experimented with different quantization strategies, and ultimately delivered a model achieving **22+ tokens/sec, 72%+ benchmark accuracy, and under 2GB peak memory**.
+
+Most importantly, we’re proud of the willingness to **change direction when the evidence demanded it**. We moved away from a more capable multilingual 4B model to a smaller 1.5B model because we determined that reliably running on the target hardware mattered more than theoretical capability.
+
+## What we learned
+
+The biggest lesson was that **building an AI system for real-world constraints is very different from simply fine-tuning a model**. A model can perform well during training but still fail when deployed because of latency, memory, thermal behaviour, or hardware limitations. Real-hardware profiling therefore needs to be part of the development loop, not something done at the end.
+
+We also learned that **better data can matter more than simply adding more data**. We encountered identity inconsistencies, repetitive refusal pattern, cross-lingual behavior differences, and duplicate examples. Systematically auditing and improving the dataset was essential to getting more reliable behavior.
+
+Another important lesson was that **adding complexity does not necessarily improve a system**. Our RAG pipeline actually made some scored responses worse because retrieval returned irrelevant context. This taught us to validate every component independently instead of assuming that techniques like RAG will automatically improve model performance.
+
+Finally, we learned that **engineering is fundamentally about trade-offs**. The best model on paper is not necessarily the best model for the problem. For Homa, reliability, efficiency, and deployability ultimately mattered more than maximising multilingual capability or model size.
+
+## What's Next for Homa
+
+Our next step is to move Homa from a strong offline assistant into a more complete **AI platform for farmers**.
+
+First, we plan to **complete the RAG pipeline**, improving retrieval quality so Homa can ground its answers in reliable, up-to-date agricultural information rather than relying entirely on what is stored in the model's parameters.
+
+We also want to add **multimodal capabilities**, allowing farmers to provide information beyond text. For example, Homa could combine agricultural knowledge with **current market conditions to recommend appropriate prices for their crops**, helping farmers make better decisions about when and where to sell.
+
+On the deployment side, we plan to **bundle Homa into a native desktop application**, making the entire system easy to install and use offline without requiring users to manage models, dependencies, or command-line tools themselves.
+
+Finally, we want to develop a **much smaller mobile version of Homa** that can run directly on farmers' phones. This is particularly important for our target users because the long-term goal is to make useful AI accessible without requiring expensive hardware or constant internet connectivity.
+
+## Reference
+1 - [TechAfrica News (2026), _2025 vs 2026 Mobile Industry Checkpoint: Has Anything Actually Changed for Africa?_, March 5, 2026.](https://techafricanews.com/2026/03/05/2025-vs-2026-mobile-industry-checkpoint-has-anything-actually-changed-for-africa/)
