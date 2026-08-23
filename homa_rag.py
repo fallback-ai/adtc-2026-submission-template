@@ -1,13 +1,15 @@
+import json
 import os
 import re
-import json
 import time
-from dotenv import load_dotenv
-import requests
-import chromadb
-from pathlib import Path
 from datetime import datetime, timezone
-from sentence_transformers import SentenceTransformer
+from pathlib import Path
+
+import chromadb
+import requests
+from dotenv import load_dotenv
+
+from embedder import get_embedder, collection, sync_knowledge_base, get_pending_changes
 
 
 load_dotenv()
@@ -17,20 +19,17 @@ CHROMA_DB_PATH = os.environ.get(
     str(Path(__file__).resolve().parent / "chroma_db"),
 )
 
-
-# Defaults to local Ollama, but can be overridden with an env var like a Kaggle/Colab
-# session tunneled via ngrok for testing locally:
-#   HOMA_OLLAMA_URL="https://xxxx.ngrok-free.app/api/generate" python homa_rag.py.
 OLLAMA_URL = os.environ.get(
     "HOMA_OLLAMA_URL", "http://localhost:11434/api/generate"
 )
 
-# Performance monitoring and observability:
-# JSONL, not a single .json array. Safe to append one line per turn without
-# rewriting the whole file, and greppable/parseable line-by-line for review.
-LOG_PATH = os.environ.get("HOMA_LOG_PATH", str(
-    Path(__file__).resolve().parent / "homa_log.jsonl")
+LOG_PATH = os.environ.get(
+    "HOMA_LOG_PATH",
+    str(Path(__file__).resolve().parent / "homa_log.jsonl"),
 )
+
+MAX_DISTANCE = 0.85
+TOP_K = 2
 
 # Identity / anti-deflection preamble. raw=True bypasses the Modelfile SYSTEM,
 # so if we want it on this path we must inject it into the prompt ourselves.
@@ -40,10 +39,9 @@ LOG_PATH = os.environ.get("HOMA_LOG_PATH", str(
 # a runtime nudge on top. Set HOMA_SYSTEM_PROMPT="" to disable and A/B it.
 DEFAULT_SYSTEM = (
     "You are Homa, an offline agricultural assistant for farmers in Nigeria, "
-    "built by Fallback AI. You are not made by OpenAI, Google, or Anthropic, and "
-    "you are not ChatGPT or Gemini. Answer questions directly and practically "
-    "first; ask a follow-up only if truly necessary. Reply in the same language "
-    "the user writes in."
+    "built by Fallback AI. You give practical, direct advice on crops, livestock, "
+    "soil, pests, weather, and markets in English, Hausa, Igbo, and Yoruba, "
+    "replying in the language the user uses."
 )
 SYSTEM_PROMPT = os.environ.get("HOMA_SYSTEM_PROMPT", DEFAULT_SYSTEM)
 
@@ -51,47 +49,40 @@ SYSTEM_PROMPT = os.environ.get("HOMA_SYSTEM_PROMPT", DEFAULT_SYSTEM)
 # Capped so the running conversation plus fresh RAG passages stays under num_ctx.
 MAX_HISTORY_TURNS = int(os.environ.get("HOMA_MAX_HISTORY_TURNS", "4"))
 
-embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
-# We'd have to add more data. Most especially for livestock domain
-COLLECTIONS = {
-    "crop_disease": client.get_or_create_collection("crop_disease"),
-    "fertilizer": client.get_or_create_collection("fertilizer"),
-    "planting": client.get_or_create_collection("planting"),
-    "pest_management": client.get_or_create_collection("pest_management"),
-}
+def _embed_query(question):
+    """Embed a user question as a query vector for RAG search."""
+    return list(get_embedder().embed([f"query: {question}"]))[0]
 
 
-# Semantic search across ALL collections directly, ranked by distance
-# — no keyword pre-filter. The old keyword router (route_query) was English-only and
-# silently returned zero context for Hausa/Igbo/Yoruba questions, since
-# none of those words appear in a non-English question. This works
-# regardless of question language because it relies entirely on the
-# multilingual embedder, not English keyword matching.
-# Prioritizing accuracy improvements with a slight, negligible performance trade-off.
-def search_rag(question, n_results_per_collection=2, top_k=3):
-    embedding = embedder.encode(question).tolist()
+def search_rag(question, top_k=TOP_K):
+    """Query the ChromaDB store and return nearest matched documents."""
+    embedding = _embed_query(question)
+    try:
+        results = collection.query(
+            query_embeddings=[embedding],
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as e:
+        print(f"[warn] search failed for homa_knowledge_base: {e}")
+        return []
+
+    docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    dists = results.get("distances", [[]])[0]
     scored = []
-    for col_name, collection in COLLECTIONS.items():
-        try:
-            results = collection.query(
-                query_embeddings=[embedding],
-                n_results=n_results_per_collection,
-            )
-            docs = results.get("documents", [[]])[0]
-            metas = results.get("metadatas", [[]])[0]
-            dists = results.get("distances", [[]])[0]
-            for doc, meta, dist in zip(docs, metas, dists):
-                scored.append({
-                    "text": doc,
-                    "source": (meta or {}).get("source", "unknown"),
-                    "distance": dist,
-                })
-        except Exception as e:
-            print(f"[warn] search failed for collection '{col_name}': {e}")
-    scored.sort(key=lambda r: r["distance"])
-    return scored[:top_k]
+    for doc, meta, dist in zip(docs, metas, dists):
+        if dist is None or dist > MAX_DISTANCE:
+            continue
+        scored.append(
+            {
+                "text": doc,
+                "source": (meta or {}).get("source", "unknown"),
+                "distance": dist,
+            }
+        )
+    return scored
 
 # The CURRENT user turn matches the SFT-trained RAG format exactly:
 # "Retrieved Passages: / Passage N: / Question:", nothing else. When there's no
@@ -102,16 +93,15 @@ def search_rag(question, n_results_per_collection=2, top_k=3):
 def format_user_content(question, context_docs):
     if context_docs:
         passages = "\n\n".join(
-            f"Passage {i+1}:\n{r['text']}" for i, r in enumerate(context_docs)
+            f"Passage {i+1}:\n{doc['text']}" for i, doc in enumerate(context_docs)
         )
         return f"Retrieved Passages:\n\n{passages}\n\nQuestion:\n{question}"
     return question
-
-
 # Builds the full raw prompt string ourselves (raw=True), so we keep exact
 # control over the turn format while supporting multi-turn history and an
 # optional system preamble folded into the first user turn.
 def build_prompt(question, context_docs, history=None, system=SYSTEM_PROMPT):
+    """Build the RAG prompt for the language model, including retrieved passages."""
     history = history or []
     turns = list(history) + [("user", format_user_content(question, context_docs))]
 
@@ -124,36 +114,37 @@ def build_prompt(question, context_docs, history=None, system=SYSTEM_PROMPT):
     parts.append("<start_of_turn>model\n")
     return "".join(parts)
 
-# Lightweight safety net only, not the primary defense The actual fix
-# for identity leaks is matching the trained prompt format
-# exactly (as shown in build_prompt). Kept short and conservative to avoid
-# false-positive stripping of legitimate advice sentences. Will Re-test
-# whether this is even still needed once the corrected template is in use.
 
-
-def clean_response(answer):
+def clean_response(answer: str) -> str:
+    if not answer:
+        return ""
+    cleaned = re.sub(r"Retrieved Passages:\s*", "",
+                     answer, flags=re.IGNORECASE)
+    cleaned = re.sub(r"Passage \d+:\s*", "", cleaned, flags=re.IGNORECASE)
+    
     leak_phrases = [
         "i am homa, created by fallback",
         "my instructions",
         "the retrieved passages",
         "the provided text",
     ]
-    sentences = re.split(r"(?<=[.!?])\s+", answer)
+    sentences = re.split(r"(?<=[.!?])\s+", cleaned)
     clean = [s for s in sentences if not any(
         p in s.lower() for p in leak_phrases)]
     return " ".join(clean).strip()
 
 
-# One JSON object per turn -- question, what was retrieved (source/distance/
-# text), raw vs cleaned response, and timing, for manual performance review.
-# Logs failures too (error field), not just successes.
 def log_turn(question, context_docs, raw_answer, clean_answer, retrieval_s, generation_s, error=None):
+    """Persist a single question/answer turn to the JSONL log file."""
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "question": question,
         "retrieved": [
-            {"source": d["source"], "distance": round(
-                d["distance"], 4), "text": d["text"]}
+            {
+                "source": d["source"],
+                "distance": round(d["distance"], 4),
+                "text": d["text"],
+            }
             for d in context_docs
         ],
         "raw_response": raw_answer,
@@ -170,6 +161,7 @@ def log_turn(question, context_docs, raw_answer, clean_answer, retrieval_s, gene
 
 
 def ask_homa(question, history=None):
+    """Ask the Homa RAG agent a question and return its cleaned answer."""
     t0 = time.perf_counter()
     context_docs = search_rag(question)
     t1 = time.perf_counter()
@@ -190,8 +182,7 @@ def ask_homa(question, history=None):
                     "stop": ["<start_of_turn>", "<end_of_turn>"],
                 },
             },
-            timeout=300,  # Increased in colab session.
-            # Timeout can be reduced when testing locally
+            timeout=300,
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
@@ -199,8 +190,8 @@ def ask_homa(question, history=None):
         log_turn(question, context_docs, None,
                  error_msg, t1 - t0, None, error=str(e))
         return error_msg
-    t2 = time.perf_counter()
 
+    t2 = time.perf_counter()
     try:
         raw_answer = response.json().get("response", "").strip()
     except ValueError:
@@ -215,7 +206,52 @@ def ask_homa(question, history=None):
     return clean_answer
 
 
+def maybe_sync_knowledge_base():
+    """Check for knowledge base changes and ask for permission before syncing.
+
+    Detection (get_pending_changes) is read-only and cheap. The actual
+    embedding pass (sync_knowledge_base) only runs if the user opts in,
+    since it re-embeds every new/changed file and can be expensive.
+    """
+    try:
+        pending = get_pending_changes()
+    except Exception as e:
+        print(f"[warn] failed to check for knowledge base changes: {e}")
+        return
+
+    new_or_updated = pending.get("new_or_updated", [])
+    removed = pending.get("removed", [])
+
+    if not new_or_updated and not removed:
+        print("Knowledge base is up to date. No sync needed.")
+        return
+
+    print("Knowledge base changes detected:")
+    if new_or_updated:
+        print(f"  New or changed files ({len(new_or_updated)}):")
+        for relpath in new_or_updated:
+            print(f"    - {relpath}")
+    if removed:
+        print(f"  Removed files ({len(removed)}):")
+        for relpath in removed:
+            print(f"    - {relpath}")
+
+    answer = input(
+        "Re-embed / update the index now? [y/N]: ").strip().lower()
+    if answer != "y":
+        print("Skipping sync; using existing embeddings.")
+        return
+
+    print("Syncing knowledge base...")
+    try:
+        sync_knowledge_base()
+    except Exception as e:
+        print(f"[warn] sync_knowledge_base failed: {e}")
+
+
 if __name__ == "__main__":
+    maybe_sync_knowledge_base()
+
     print("Homa RAG Agent ready!")
     print(f"Model endpoint: {OLLAMA_URL}")
     print(f"Logging turns to: {LOG_PATH}")
