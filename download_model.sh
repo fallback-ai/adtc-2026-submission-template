@@ -29,5 +29,5 @@ else
 fi
 
 mv "$MODEL_FILE.partial" "$MODEL_FILE"
-echo "download complete.
+echo "download complete."
 echo "model downloaded at: $MODEL_FILE"
