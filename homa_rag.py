@@ -33,15 +33,14 @@ TOP_K = 2
 
 # Identity / anti-deflection preamble. raw=True bypasses the Modelfile SYSTEM,
 # so if we want it on this path we must inject it into the prompt ourselves.
-# It is folded into the FIRST user turn (Gemma has no system role). This is a
-# deliberate deviation from the pure trained RAG format; the trained identity
-# signal (heavily up-weighted in the V3 corpus) is the primary defense, this is
-# a runtime nudge on top. Set HOMA_SYSTEM_PROMPT="" to disable and A/B it.
+# Qwen has a native ChatML system role, so it goes in a dedicated
+# <|im_start|>system turn (matching training/train_qwen15b.py). The trained
+# identity signal is the primary defense; this is a runtime nudge on top. Set
+# HOMA_SYSTEM_PROMPT="" to disable and A/B it.
 DEFAULT_SYSTEM = (
     "You are Homa, an offline agricultural assistant for farmers in Nigeria, "
     "built by Fallback AI. You give practical, direct advice on crops, livestock, "
-    "soil, pests, weather, and markets in English, Hausa, Igbo, and Yoruba, "
-    "replying in the language the user uses."
+    "soil, pests, weather, and markets."
 )
 SYSTEM_PROMPT = os.environ.get("HOMA_SYSTEM_PROMPT", DEFAULT_SYSTEM)
 
@@ -98,20 +97,20 @@ def format_user_content(question, context_docs):
         return f"Retrieved Passages:\n\n{passages}\n\nQuestion:\n{question}"
     return question
 # Builds the full raw prompt string ourselves (raw=True), so we keep exact
-# control over the turn format while supporting multi-turn history and an
-# optional system preamble folded into the first user turn.
+# control over the turn format while supporting multi-turn history and a
+# dedicated ChatML system turn. Matches training/train_qwen15b.py.
 def build_prompt(question, context_docs, history=None, system=SYSTEM_PROMPT):
     """Build the RAG prompt for the language model, including retrieved passages."""
     history = history or []
     turns = list(history) + [("user", format_user_content(question, context_docs))]
 
     parts = []
-    for idx, (role, content) in enumerate(turns):
-        if idx == 0 and system:
-            content = f"{system}\n\n{content}"
-        tag = "model" if role == "assistant" else "user"
-        parts.append(f"<start_of_turn>{tag}\n{content}<end_of_turn>\n")
-    parts.append("<start_of_turn>model\n")
+    if system:
+        parts.append(f"<|im_start|>system\n{system}<|im_end|>\n")
+    for role, content in turns:
+        tag = "assistant" if role == "assistant" else "user"
+        parts.append(f"<|im_start|>{tag}\n{content}<|im_end|>\n")
+    parts.append("<|im_start|>assistant\n")
     return "".join(parts)
 
 
@@ -179,7 +178,7 @@ def ask_homa(question, history=None):
                     "temperature": 0.2,
                     "num_predict": 1024,
                     "num_ctx": 4096,
-                    "stop": ["<start_of_turn>", "<end_of_turn>"],
+                    "stop": ["<|im_end|>", "<|im_start|>"],
                 },
             },
             timeout=300,

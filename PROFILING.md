@@ -104,7 +104,7 @@ llama-bench --version          # header should show AVX2 = 1
 ```bash
 cd adtc-2026-submission-template
 ./download_model.sh                                   # Q4_K_M -> model/
-cat model/homa-afrique-gemma-4b-q4.gguf > /dev/null   # pre-warm page cache
+cat model/homa-qwen15b-q4.gguf > /dev/null            # pre-warm page cache
 ```
 
 ### 4.3 Measure (participant mode)

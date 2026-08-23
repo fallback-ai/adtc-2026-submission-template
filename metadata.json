@@ -1,8 +1,8 @@
 {
   "team_id": "fallbackai-2026",
   "domain": "agriculture",
-  "language_scope": ["en", "ha", "yo", "sw", "fr", "ig"],
-  "african_alpha_claim": true,
+  "language_scope": ["en"],
+  "african_alpha_claim": false,
   "budget_laptop_claim": true,
   "submitter": {
     "name": "Somtochukwu Ikewelugo",
@@ -25,13 +25,13 @@
     }
   ],
   "model": {
-    "name": "Homa-Afrique-Gemma-4B",
+    "name": "Homa-Qwen2.5-1.5B",
     "runtime": "llama.cpp",
     "quantization": "GGUF Q4_K_M",
-    "parameters_estimate": "4B",
+    "parameters_estimate": "1.5B",
     "packaging": "binary_bundle"
   },
   "_runtime": {
-    "model_path": "model/homa-afrique-gemma-4b-q4.gguf"
+    "model_path": "model/homa-qwen15b-q4.gguf"
   }
 }
