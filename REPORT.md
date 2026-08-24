@@ -3,7 +3,7 @@
 
 - **Team:** Fallback AI (`fallback-ai`)
 - **Domain:** Agriculture (`agriculture`)
-- **Primary Submission Model:** `Homa-Qwen2.5-1.5B` (GGUF Q4_K_M)
+- **Primary Submission Model:** [`Homa-Qwen2.5-1.5B`](https://huggingface.co/fallback-ai/Homa-Qwen2.5-1.5B/blob/main/v1/homa-qwen15b-q4.gguf) (GGUF Q4_K_M)
 
 ---
 ## 1. Executive Summary & Problem Scope
